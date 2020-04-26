@@ -1,0 +1,10 @@
+*.swp
+*.o
+*.ko
+*.cmd
+*.symvers
+*.order
+*.mod
+*.mod.c
+daemon/netatopd
+netatopversion.h
