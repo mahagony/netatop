@@ -1,0 +1,24 @@
+To build the kernel module 'netatop' and the daemon 'netatopd':
+
+- install package "zlib-devel"   (if not installed yet) or
+  install package "zlib1-dev"    (in case of Debian derivatives)
+
+- install package "kernel-devel" (not required for every distro)
+
+- run "make"			to compile the kernel module and daemon
+
+- run "make install"		to install the kernel module and
+				daemon (as root)
+
+- run "systemctl start netatop"	to load the kernel module and
+				start the daemon
+
+
+For automatic load of the 'netatop' module and startup
+of the 'netatopd' daemon after boot, use the command:
+
+- systemctl enable netatop
+
+Gerlof Langeveld
+October 2012
+Last update: March 2020
