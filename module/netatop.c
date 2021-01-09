@@ -270,7 +270,11 @@ static unsigned long long	gclast;	// last garbage collection (jiffies)
 
 static struct task_struct	*knetatop_task;
 
-static struct timespec	boottime;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+static struct timespec64	boottime;
+#else
+static struct timespec		boottime;
+#endif
 
 /*
 ** function prototypes
@@ -346,6 +350,14 @@ static struct nf_sockopt_ops sockopts = {
         .owner          = THIS_MODULE,
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+static struct proc_ops netatop_proc_fops = {
+	.proc_open	= netatop_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+};
+#else
 static struct file_operations netatop_proc_fops = {
 	.open           = netatop_open,
 	.read	        = seq_read,
@@ -353,6 +365,7 @@ static struct file_operations netatop_proc_fops = {
 	.release	= single_release,
 	.owner          = THIS_MODULE,
 };
+#endif
 
 
 /*
@@ -1745,7 +1758,11 @@ init_module()
 		spin_lock_init(&shash[i].lock);
 	}
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
+	getboottime64(&boottime);
+#else
 	getboottime(&boottime);
+#endif
 
 	/*
 	** register getsockopt for user space communication

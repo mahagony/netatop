@@ -1,3 +1,14 @@
+commit f834b553e8710137bb4544d75c688b101fab639c
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Tue Apr 28 11:16:41 2020 +0200
+
+    Adapted to kernel version 5.6.
+    The struct timespec has been modified to struct timespec64 and
+    the struct file_operations has been modified to struct proc_ops.
+    Credits: Joey Dumont
+
+M	module/netatop.c
+
 commit 7fee7b0d3afc66e2d7ea4bea0e8273cef47b531d
 Author: Gerlof Langeveld <gerlof@atcomputing.nl>
 Date:   Sat Mar 7 13:33:02 2020 +0100
