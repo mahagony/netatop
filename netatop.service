@@ -9,7 +9,7 @@ Type=oneshot
 ExecStartPre=/sbin/modprobe netatop
 ExecStart=/usr/sbin/netatopd
 ExecStopPost=/sbin/rmmod netatop
-PIDFile=/var/run/netatop.pid
+PIDFile=/run/netatop.pid
 RemainAfterExit=yes
 
 [Install]
