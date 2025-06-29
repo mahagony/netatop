@@ -1768,7 +1768,7 @@ static struct pernet_operations netatop_net_ops = {
 ** called when module loaded
 */
 int
-init_module()
+LinuxDriverInit(void)
 {
 	int i;
 
@@ -1869,7 +1869,7 @@ init_module()
 ** called when module unloaded
 */
 void
-cleanup_module()
+LinuxDriverExit(void)
 {
 	/*
  	** tell kernel daemon to stop
@@ -1903,3 +1903,6 @@ cleanup_module()
 	kmem_cache_destroy(ticache);
 	kmem_cache_destroy(sicache);
 }
+
+module_init(LinuxDriverInit);
+module_exit(LinuxDriverExit);
