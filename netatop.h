@@ -24,7 +24,7 @@ struct netpertask {
 
 
 /*
-** getsocktop commands
+** getsockopt commands
 */
 #define NETATOP_BASE_CTL   	15661
 

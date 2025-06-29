@@ -3,18 +3,7 @@
 # Generate proper versioning include file
 #
 CURDATE=$(date +%Y\/%m\/%d\ %H:%M:%S)
-
-if [ -d .git ]	# git versioning available?
-then
-	CURVERS=$(git branch | grep '^\* ' | sed -e 's/[* ]//g')
-
-	if [ "$CURVERS" = master ]
-	then
-		CURVERS="T$(date +%Y%m%d%H%M%S)"
-	fi
-else
-	exit 0	# do not modify
-fi
+CURVERS=$(grep 'PACKAGE_VERSION' dkms.conf | sed -e 's/^.*=//' -e 's/"//g')
 
 echo "#define	NETATOPVERSION	\"$CURVERS\""	 > netatopversion.h
 echo "#define	NETATOPDATE	\"$CURDATE\""	>> netatopversion.h

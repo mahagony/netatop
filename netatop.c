@@ -67,7 +67,7 @@
 ** within 15 seconds after a process has been declared 'finished' by
 ** the garbage collector. Whenever this command is issued and no exited
 ** process is in the exitlist, the requesting process is blocked until
-** an exited process is available. 
+** an exited process is available.
 **
 ** The command NETATOP_FORCE_GC activates the garbage collector of the
 ** netatop module to  determine if sockinfo's of old connections/ports
@@ -75,7 +75,8 @@
 ** The command NETATOP_EMPTY_EXIT can be issued to wait until the exitlist
 ** with the taskinfo's of exited processes is empty.
 ** ----------------------------------------------------------------------
-** Copyright (C) 2012    Gerlof Langeveld (gerlof.langeveld@atoptool.nl)
+** Copyright (C) -- Gerlof Langeveld (gerlof.langeveld@atoptool.nl)
+** Initial: 2012
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License version 2 as
@@ -102,8 +103,8 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 
-#include "../netatop.h"
-#include "../netatopversion.h"
+#include "netatop.h"
+#include "netatopversion.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Gerlof Langeveld <gerlof.langeveld@atoptool.nl>");
@@ -145,6 +146,7 @@ struct taskinfo {
 	char			command[COMLEN];
 	unsigned long		btime;		// start time of process
 	unsigned long long	exittime;	// time inserted in exitlist
+	unsigned int		sockrefcnt;	// sockinfo reference count
 
 	struct taskcount	tc;
 };
@@ -220,7 +222,7 @@ struct sockinfo {
 	short			tgh;		// hash number of thread group
 	short			thh;		// hash number of thread
 
-        unsigned int      	sndpacks;	// temporary counters in case 
+        unsigned int      	sndpacks;	// temporary counters in case
         unsigned int      	rcvpacks; 	// known yet
         unsigned long      	sndbytes;	// no relation to process is
         unsigned long      	rcvbytes;
@@ -371,6 +373,7 @@ static struct file_operations netatop_proc_fops = {
 /*
 ** hook function to be called for every incoming local packet
 */
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 #  if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
 #    define	HOOK_ARG_TYPE	void *priv
@@ -523,7 +526,7 @@ analyze_tcpv4_packet(struct sk_buff *skb,
 		// no sockinfo yet: create one
 		if ( (sip = make_sockinfo(IPPROTO_TCP, &key,
 					sizeof key.tcp4, bs)) == NULL) {
-			if (direction == 'i') 
+			if (direction == 'i')
 				unidenttcprcvpacks++;
 			else
 				unidenttcpsndpacks++;
@@ -585,7 +588,7 @@ analyze_udp_packet(struct sk_buff *skb,
 		// no sockinfo yet: create one
 		if ( (sip = make_sockinfo(IPPROTO_UDP, &key,
 				sizeof key.udp, bs)) == NULL) {
-			if (direction == 'i') 
+			if (direction == 'i')
 				unidentudprcvpacks++;
 			else
 				unidentudpsndpacks++;
@@ -635,6 +638,7 @@ sock2task(char idtype, struct sockinfo *sip, struct taskinfo **tipp,
 		}
 
 		/*
+                ** in syscall handling now
 		** try to find existing taskinfo or create new taskinfo
 		*/
 		curid = (idtype == 'g' ? current->tgid : current->pid);
@@ -656,10 +660,12 @@ sock2task(char idtype, struct sockinfo *sip, struct taskinfo **tipp,
 		}
 
 		/*
-		** new connection made:
+		** new reference to taskinfo struct made:
 		** update task counters with sock counters
 		*/
 		sock2task_sync(skb, sip, *tipp);
+
+		(*tipp)->sockrefcnt++;	// increment reference count
 	} else {
 		/*
 		** already related to thread group or thread
@@ -669,13 +675,17 @@ sock2task(char idtype, struct sockinfo *sip, struct taskinfo **tipp,
 
 		/*
 		** check if socket has been passed to another process in the
-		** meantime, like programs as xinetd use to do
+		** meantime, like parent accepting new peer and forking
+		** child to communicate with peer
+		**
 		** if so, connect sockinfo to the new task
 		*/
 		if (in_syscall) {
 			curid = (idtype == 'g' ? current->tgid : current->pid);
 
 			if ((*tipp)->id != curid) {
+				(*tipp)->sockrefcnt--;
+
 				spin_unlock_irqrestore(&thash[*hash].lock,
 									tflags);
 				*hash = THASH(curid, idtype);
@@ -686,8 +696,11 @@ sock2task(char idtype, struct sockinfo *sip, struct taskinfo **tipp,
 								== NULL) {
 					spin_unlock_irqrestore(
 						&thash[*hash].lock, tflags);
+
 					return 0;
 				}
+
+				(*tipp)->sockrefcnt++;
 			}
 		}
 	}
@@ -923,6 +936,8 @@ make_sockinfo(int proto, union keydef *identp, int identsz, int hash)
 /*
 ** search the taskinfo structure holding the info about the given id/type
 ** if such taskinfo is not yet present, create a new one
+**
+** the appropriate hash bucket must have been locked before calling
 */
 static struct taskinfo *
 get_taskinfo(pid_t id, char type)
@@ -994,7 +1009,7 @@ get_taskinfo(pid_t id, char type)
 		tip->btime++;
 #endif
 
-	strncpy(tip->command, current->comm, COMLEN);
+	strscpy(tip->command, current->comm, COMLEN);
 
 	return tip;
 }
@@ -1003,7 +1018,7 @@ get_taskinfo(pid_t id, char type)
 ** garbage collector that removes:
 ** - exited tasks that are no longer used by user mode programs
 ** - sockinfo's that are not used any more
-** - taskinfo's that do not exist any more
+** - taskinfo's of processes/threads that do not exist any more
 **
 ** a mutex avoids that the garbage collector runs several times in parallel
 **
@@ -1054,14 +1069,14 @@ gctaskexit()
 		kmem_cache_free(ticache, tip);
 		nre--;
 		tip = exithead;
-	} 
+	}
 
 	/*
 	** if list empty now, then exithead and exittail both NULL
 	** wakeup waiters for emptylist
 	*/
 	if (nre == 0) {
-		exittail = NULL;  
+		exittail = NULL;
 		wake_up_interruptible(&exitlist_empty);
 	}
 
@@ -1080,13 +1095,16 @@ gcsockinfo()
 	struct pid	*pid;
 
 	/*
-	** go through all sockinfo hash buckets 
+	** go through all sockinfo hash buckets
 	*/
 	for (i=0; i < SBUCKS; i++) {
-		if (shash[i].ch.next == (void *)&shash[i].ch) 
-			continue;	// quick return without lock
-
 		spin_lock_irqsave(&shash[i].lock, sflags);
+
+		if (shash[i].ch.next == (void *)&shash[i].ch)
+		{
+			spin_unlock_irqrestore(&shash[i].lock, sflags);
+			continue;	// empty hash bucket
+		}
 
 		sip  = shash[i].ch.next;
 
@@ -1164,7 +1182,7 @@ gcsockinfo()
 				** to this thread group during the current
 				** cycle) and delete this sockinfo
 				** if the thread group exists, just mark
-				** it  as 'checked' for this cycle
+				** it as 'checked' for this cycle
 				*/
 				rcu_read_lock();
 				pid = find_vpid(sip->tgp->id);
@@ -1198,7 +1216,7 @@ gcsockinfo()
 			/*
 			** check if referred thread is already marked
 			** as 'indelete' during this sockinfo search
-			** if so, break connection
+			** if so, remove reference to taskinfo
 			*/
 			spin_lock_irqsave(&thash[sip->thh].lock, tflags);
 
@@ -1224,7 +1242,7 @@ gcsockinfo()
 			/*
 			** connected thread not yet verified
 			** check if it still exists
-			** if not, mark it as 'indelete' and break connection
+			** if not, mark as 'indelete' and remove ref to taskinfo
 			** if thread exists, mark it 'checked'
 			*/
 			rcu_read_lock();
@@ -1290,13 +1308,16 @@ gctaskinfo()
 	struct pid	*pid;
 
 	/*
-	** go through all taskinfo hash buckets 
+	** go through all taskinfo hash buckets
 	*/
 	for (i=0; i < TBUCKS; i++) {
-		if (thash[i].ch.next == (void *)&thash[i].ch) 
-			continue;	// quick return without lock
-
 		spin_lock_irqsave(&thash[i].lock, tflags);
+
+		if (thash[i].ch.next == (void *)&thash[i].ch)
+		{
+			spin_unlock_irqrestore(&thash[i].lock, tflags);
+			continue;	// empty hash bucket
+		}
 
 		tip = thash[i].ch.next;
 
@@ -1307,13 +1328,13 @@ gctaskinfo()
 			switch (tip->state) {
 				/*
 				** remove INDELETE tasks from the hash buckets
-				** -- move thread group to exitlist
-				** -- destroy thread right away
+				** -- in case of thread group:	move to exitlist
+				** -- in case of thread:	destroy now
 				*/
 			   case INDELETE:
 				tipsave = tip->ch.next;
 
-				if (tip->type == 'g') 
+				if (tip->type == 'g')
 					move_taskinfo(tip);	// thread group
 				else
 					delete_taskinfo(tip);	// thread
@@ -1331,10 +1352,10 @@ gctaskinfo()
 				pid = find_vpid(tip->id);
 				rcu_read_unlock();
 
-				if (pid == NULL) {
+				if (pid == NULL && tip->sockrefcnt <= 0) {
 					tipsave = tip->ch.next;
 
-					if (tip->type == 'g') 
+					if (tip->type == 'g')
 						move_taskinfo(tip);
 					else
 						delete_taskinfo(tip);
@@ -1476,13 +1497,36 @@ delete_taskinfo(struct taskinfo *tip)
 }
 
 /*
-** remove one sockinfo struct for the hash bucket chain
+** remove one sockinfo struct from the hash bucket chain
 */
 static void
 delete_sockinfo(struct sockinfo *sip)
 {
 	unsigned long	flags;
 
+	/*
+ 	** decrease sockinfo reference counts for thread group and thread
+	*/
+	if (sip->tgp) {
+		spin_lock_irqsave(&thash[sip->tgh].lock, flags);
+
+		sip->tgp->sockrefcnt--;
+
+		spin_unlock_irqrestore(&thash[sip->tgh].lock, flags);
+	}
+
+	if (sip->thp) {
+		spin_lock_irqsave(&thash[sip->thh].lock, flags);
+
+		sip->thp->sockrefcnt--;
+
+		spin_unlock_irqrestore(&thash[sip->thh].lock, flags);
+	}
+
+	/*
+ 	** remove sockinfo struct from hash chain
+	** and delete struct
+	*/
 	((struct sockinfo *)sip->ch.next)->ch.prev = sip->ch.prev;
 	((struct sockinfo *)sip->ch.prev)->ch.next = sip->ch.next;
 
@@ -1527,7 +1571,7 @@ netatop_open(struct inode *inode, struct file *file)
 }
 
 /*
-** called when user spce issues system call getsockopt()
+** called when user space issues system call getsockopt()
 */
 static int
 getsockopt(struct sock *sk, int cmd, void __user *user, int *len)
@@ -1617,7 +1661,7 @@ getsockopt(struct sock *sk, int cmd, void __user *user, int *len)
 
  	   case NETATOP_GETCNT_TGID:
 		tasktype = 'g';		
-		// fall through
+		/* FALLTHRU */
  	   case NETATOP_GETCNT_PID:
 		if (*len < sizeof(pid_t))
 			return -EINVAL;

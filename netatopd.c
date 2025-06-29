@@ -50,9 +50,9 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
-#include "../netatop.h"
-#include "../netatopd.h"
-#include "../netatopversion.h"
+#include "netatop.h"
+#include "netatopd.h"
+#include "netatopversion.h"
 
 #define	EVER	;;
 

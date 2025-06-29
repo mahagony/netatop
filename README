@@ -1,24 +1,45 @@
-To build the kernel module 'netatop' and the daemon 'netatopd':
+===================================================================
+Build the kernel module 'netatop' and install the daemon 'netatopd'
+===================================================================
 
-- install package "zlib-devel"   (if not installed yet) or
-  install package "zlib1-dev"    (in case of Debian derivatives)
+- install package "zlib-devel"   	(if not installed yet) or
+  install package "zlib1-dev"    	(in case of Debian derivatives)
 
-- install package "kernel-devel" (not required for every distro)
+- install package "kernel-devel" 	(not required for every distro)
 
-- run "make"			to compile the kernel module and daemon
+- install package "dkms"
 
-- run "make install"		to install the kernel module and
-				daemon (as root)
+- cd /usr/src; tar -xvf netatop-VERSION	to extract the tar archive for this VERSION
+- cd /usr/src/netatop-VERSION		and go to new directory
 
-- run "systemctl start netatop"	to load the kernel module and
-				start the daemon
+- run "make"				to compile the kernel module 'netatop'
+					and the daemon 'netatopd'
+
+- run "make install"			to install the kernel module and
+					daemon (as root) via dkms
+
+- run "systemctl start netatop"		to load the kernel module and start
+					the daemon (as root)
+
+					run "systemctl stop netatop" if you want
+					to stop the daemon and unload the kernel
+					module later on
+
+- run "systemctl enable netatop"	to automatically load 'netatop' module
+					and startup 'netatopd' daemon at boot
+					(as root)
+
+=======================================================================
+Remove the kernel module 'netatop' and deactivate the daemon 'netatopd'
+=======================================================================
+
+- run "systemctl disable --now netatop"
+- run "dkms remove -m netatop -v VERSION --all"
 
 
-For automatic load of the 'netatop' module and startup
-of the 'netatopd' daemon after boot, use the command:
-
-- systemctl enable netatop
-
-Gerlof Langeveld
-October 2012
-Last update: March 2020
+=======================================================================
+Author:		Gerlof Langeveld
+Initial:	October 2012
+Update: 	March 2020
+Update: 	June 2024	- solve panic and add DMKS support
+=======================================================================

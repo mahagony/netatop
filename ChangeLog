@@ -1,3 +1,85 @@
+commit ea3b0db5a07c84ea1f773b37f8044dc9b8c83fba
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Sat Jun 1 12:31:56 2024 +0200
+
+    Solve crash with protection fault
+    Improved garbage collection to avoid a crash in case of a short-living
+    process with a short-living network connection.
+
+D	daemon/Makefile
+D	module/Makefile
+R095	module/netatop.c	netatop.c
+M	netatop.h
+R099	daemon/netatopd.c	netatopd.c
+
+commit 1abd031f312944197699840bb5e928bf8b8580b0
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Sat Jun 1 12:31:39 2024 +0200
+
+    Modify description of installation procedure
+
+M	README
+
+commit b8e85391c4cca264ef12de899c25bbfcb1d0e3dd
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Sat Jun 1 12:31:05 2024 +0200
+
+    Determine version via dkms.conf
+
+M	mkdistr
+M	mkversion
+
+commit e263a27c3521cfd0ea292418d3dc5f43a7969417
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Sat Jun 1 12:29:37 2024 +0200
+
+    Flatten source directory structure and introduce DKMS
+
+M	Makefile
+A	dkms.conf
+
+commit a1bd7e6c8b7f2075cfe0dbbc423f52bb96278b16
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Sat Jun 1 11:33:16 2024 +0200
+
+    Modified PIDfile from /var/run to /run
+
+M	netatop.service
+
+commit f0f69d613a46c81ffed60444facf405b940d5638
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Fri Sep 1 16:40:34 2023 +0200
+
+    URL http changed to https
+
+M	man/netatop.4
+M	man/netatopd.8
+
+commit cc6de56a1e82d0a86be60667e08e87a50dae2551
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Mon Jan 17 08:32:36 2022 +0100
+
+    Add OpenRC unit for netatop (Gentoo)
+
+A	netatop.rc
+
+commit 41fa7a2a981ab0918a805d1158805a1c7981c351
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Mon Jan 17 08:30:56 2022 +0100
+
+    Respect CFLAGS, CXXFLAGS, LDFLAGS during build (Gentoo)
+
+M	Makefile
+M	daemon/Makefile
+M	module/Makefile
+
+commit 38857d73fc4872cd58d27ff61a6830e633ac8bdb
+Merge: 7fee7b0 f834b55
+Author: Gerlof Langeveld <gerlof@atcomputing.nl>
+Date:   Tue Apr 28 11:28:54 2020 +0200
+
+    Merge branch '3.1'
+
 commit f834b553e8710137bb4544d75c688b101fab639c
 Author: Gerlof Langeveld <gerlof@atcomputing.nl>
 Date:   Tue Apr 28 11:16:41 2020 +0200
@@ -319,8 +401,7 @@ M	Makefile
 A	daemon/Makefile
 A	daemon/netatopd.c
 A	module/Makefile
-A	module/netatop.c
-D	netatop.c
+R086	netatop.c	module/netatop.c
 M	netatop.h
 M	netatop.init
 A	netatopd.h
